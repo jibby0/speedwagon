@@ -1,22 +1,6 @@
-use crate::speedwagon::api::v1::users::{User};
+use crate::speedwagon::api::v1::users::User;
 use crate::speedwagon::schema::users;
 use diesel::prelude::*;
-
-#[derive(Insertable)]
-#[table_name = "users"]
-struct InsertableUser {
-    username: String,
-    password: String
-}
-
-impl InsertableUser {
-    fn from_user(user: User) -> InsertableUser {
-        InsertableUser {
-            username: user.username,
-            password: user.password,
-        }
-    }
-}
 
 pub fn all(connection: &PgConnection) -> QueryResult<Vec<User>> {
     users::table.load::<User>(&*connection)
@@ -28,7 +12,7 @@ pub fn get(username: String, connection: &PgConnection) -> QueryResult<User> {
 
 pub fn insert(user: User, connection: &PgConnection) -> QueryResult<User> {
     diesel::insert_into(users::table)
-        .values(&InsertableUser::from_user(user))
+        .values(user)
         .get_result(connection)
 }
 

@@ -6,6 +6,5 @@ CREATE TABLE users (
 
 CREATE TABLE tokens (
   id UUID PRIMARY KEY,
-  username TEXT REFERENCES users(username) NOT NULL,
-  expires TIMESTAMP NOT NULL
+  username TEXT REFERENCES users(username) NOT NULL
 );
