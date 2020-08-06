@@ -4,6 +4,8 @@ use std::io;
 
 mod speedwagon;
 use speedwagon::api::v1::{items, users};
+use speedwagon::db;
+use dotenv;
 
 extern crate chrono;
 
@@ -15,13 +17,16 @@ extern crate bcrypt;
 #[macro_use] extern crate diesel;
 
 fn main() {
+    dotenv::dotenv().ok();
     setup_logging(log::LevelFilter::Debug).expect("failed to initialize logging");
-    rocket::ignite().mount("/", routes![
-        items::index,
-        users::create,
-        users::login,
-        users::logout,
-        users::user_index,
+    rocket::ignite()
+        .manage(db::init_pool())
+        .mount("/", routes![
+            items::index,
+            users::create,
+            users::login,
+            users::logout,
+            users::user_index,
         ]).launch();
 }
 

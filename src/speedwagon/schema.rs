@@ -2,6 +2,7 @@ table! {
     tokens (id) {
         id -> Uuid,
         username -> Text,
+        expires -> Timestamp,
     }
 }
 

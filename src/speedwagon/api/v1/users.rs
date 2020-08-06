@@ -5,6 +5,7 @@ use rocket_contrib::json::Json;
 use uuid::Uuid;
 use bcrypt::{DEFAULT_COST, hash, verify};
 use log;
+use time;
 
 use serde::{Serialize, Deserialize};
 
@@ -49,6 +50,7 @@ pub struct ApiTokenResp {
 pub struct UserLogin {
     username: String,
     password: String,
+    persistent: bool
 }
 
 #[derive(Queryable, AsChangeset, Serialize, Deserialize, Debug, Identifiable, Insertable)]
@@ -59,31 +61,19 @@ pub struct User {
     pub password: String
 }
 
-#[derive(Queryable, AsChangeset, Serialize, Deserialize, Debug, Associations, Insertable)]
+#[derive(Queryable, AsChangeset, Debug, Associations, Insertable)]
 #[table_name = "tokens"]
 #[belongs_to(User, foreign_key = "username")]
 pub struct Token {
     pub id: TokenId,
-    pub username: String
+    pub username: String,
+    pub expires: time::Timespec
 }
 
-// TODO make this work for DB users
-// impl<'a, 'r> FromRequest<'a, 'r> for User {
-//    type Error = std::convert::Infallible;
-//
-//    fn from_request(request: &'a Request<'r>) -> request::Outcome<User, Self::Error> {
-//        request.cookies()
-//            .get_private("user_cookie")
-//            .and_then(|cookie| cookie.value().parse().ok())
-//            .map(|id| User(id))
-//            .or_forward(())
-//    }
-//}
-
 #[post("/api/v1/users/login", data = "<login>")]
-pub fn login(mut cookies: Cookies<'_>, connection: DbConn, login: Json<UserLogin>) -> JSONResp<ApiTokenResp> {
-    let user = match db_users::get(login.username, &connection) {
-        Err(e) => return err_resp(format!("User {} not found", login.username)),
+pub fn login(mut cookies: Cookies<'_>, conn: DbConn, login: Json<UserLogin>) -> JSONResp<ApiTokenResp> {
+    let user = match db_users::get(login.username.clone(), &conn) {
+        Err(_) => return err_resp(format!("User {} not found", login.username)),
         Ok(u) => u
     };
     log::debug!("{:?}", user);
@@ -99,22 +89,31 @@ pub fn login(mut cookies: Cookies<'_>, connection: DbConn, login: Json<UserLogin
     }
 
     let api_token = Uuid::new_v4();
-    let mut cookie = Cookie::new("api_token", &api_token.to_string());
+
+    let expiration = time::now() + if login.persistent {
+        time::Duration::days(365 * 20)
+    } else {
+        time::Duration::days(1)
+    };
+    let token = Token {
+        id: api_token,
+        username: user.username,
+        expires: expiration.to_timespec()
+    };
+    let mut cookie = Cookie::new("api_token", api_token.to_string());
     cookie.set_secure(true);
-    cookie.make_permanent();
+    cookie.set_expires(expiration);
+    // TODO cookies aren't being added?
     cookies.add_private(cookie);
 
-    let t = Token{
-        id: api_token,
-        username: user.username
-    };
-    db_tokens::insert(t, &connection);
+    // TODO check that this succeeded
+    db_tokens::insert(token, &conn);
 
     ok_resp(ApiTokenResp{api_token: api_token})
 }
 
 #[post("/api/v1/users/create", data = "<login>")]
-pub fn create(login: Json<User>) -> JSONResp<String> {
+pub fn create(conn: DbConn, login: Json<User>) -> JSONResp<String> {
     let hashed_pass = match hash(login.password.clone(), DEFAULT_COST) {
         Err(e) => {
             log::error!("Error hashing password: {}", e);
@@ -123,7 +122,12 @@ pub fn create(login: Json<User>) -> JSONResp<String> {
         Ok(p) => p
     };
     log::debug!("Hashed {} as {}", login.password, hashed_pass);
-    ok_resp(format!("Created user {}", login.username))
+
+    let user = User{username: login.username.clone(), password: hashed_pass};
+    match db_users::insert(user, &conn) {
+        Ok(_) => ok_resp(format!("Created user {}", login.username)),
+        Err(e) => err_resp(format!("Could not create user: {}", e)),
+    }
 }
 
 #[post("/api/v1/users/logout")]

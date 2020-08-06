@@ -10,7 +10,7 @@ use rocket::request::{self, FromRequest};
 use std::env;
 use std::ops::Deref;
 
-type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
+pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 pub fn init_pool() -> Pool {
     let manager = ConnectionManager::<PgConnection>::new(database_url());
