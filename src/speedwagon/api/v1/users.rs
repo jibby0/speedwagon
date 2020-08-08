@@ -1,5 +1,6 @@
 use rocket::response::status::Custom;
 use rocket::http::Status;
+use rocket::State;
 use rocket::http::{Cookie, Cookies};
 use rocket_contrib::json::Json;
 use uuid::Uuid;
@@ -9,6 +10,7 @@ use time;
 
 use serde::{Serialize, Deserialize};
 
+use crate::speedwagon::state::Environment;
 use crate::speedwagon::db::DbConn;
 use crate::speedwagon::db::users as db_users;
 use crate::speedwagon::db::tokens as db_tokens;
@@ -29,9 +31,19 @@ pub fn ok_resp<T: Serialize>(x: T) -> JSONResp<T> {
     }))
 }
 
-pub fn err_resp<U: Into<String>, T>(x: U) -> JSONResp<T> {
+pub fn user_err_resp<U: Into<String>, T>(x: U) -> JSONResp<T> {
     Err(
         Custom(Status::BadRequest,
+        Json(Resp{
+            status: "error",
+            contents: x.into(),
+        })
+    ))
+}
+
+pub fn internal_err_resp<U: Into<String>, T>(x: U) -> JSONResp<T> {
+    Err(
+        Custom(Status::InternalServerError,
         Json(Resp{
             status: "error",
             contents: x.into(),
@@ -70,22 +82,26 @@ pub struct Token {
     pub expires: time::Timespec
 }
 
+pub struct ValidToken {
+    pub id: TokenId,
+    pub username: String,
+}
+
 #[post("/api/v1/users/login", data = "<login>")]
-pub fn login(mut cookies: Cookies<'_>, conn: DbConn, login: Json<UserLogin>) -> JSONResp<ApiTokenResp> {
+pub fn login(mut cookies: Cookies<'_>, conn: DbConn, rocket_env: State<Environment>, login: Json<UserLogin>) -> JSONResp<ApiTokenResp> {
     let user = match db_users::get(login.username.clone(), &conn) {
-        Err(_) => return err_resp(format!("User {} not found", login.username)),
+        Err(_) => return user_err_resp(format!("User {} not found", login.username)),
         Ok(u) => u
     };
-    log::debug!("{:?}", user);
     let passwords_match = match verify(login.password.clone(), &user.password) {
         Err(e) => {
             log::error!("Error verifying password: {}", e);
-            return err_resp("Could not verify password")
+            return internal_err_resp("Could not verify password")
         }
         Ok(p) => p
     };
     if !passwords_match {
-        return err_resp("Invalid username/password.");
+        return user_err_resp("Invalid username/password.");
     }
 
     let api_token = Uuid::new_v4();
@@ -101,15 +117,17 @@ pub fn login(mut cookies: Cookies<'_>, conn: DbConn, login: Json<UserLogin>) -> 
         expires: expiration.to_timespec()
     };
     let mut cookie = Cookie::new("api_token", api_token.to_string());
-    cookie.set_secure(true);
+    cookie.set_secure(rocket_env.inner().0.is_prod());
     cookie.set_expires(expiration);
-    // TODO cookies aren't being added?
     cookies.add_private(cookie);
 
-    // TODO check that this succeeded
-    db_tokens::insert(token, &conn);
-
-    ok_resp(ApiTokenResp{api_token: api_token})
+    match db_tokens::insert(token, &conn) {
+        Err(e) => {
+            log::error!("Error inserting token into DB: {}", e);
+            internal_err_resp("Could not save user token")
+        }
+        Ok(_) => ok_resp(ApiTokenResp{api_token: api_token})
+    }
 }
 
 #[post("/api/v1/users/create", data = "<login>")]
@@ -117,7 +135,7 @@ pub fn create(conn: DbConn, login: Json<User>) -> JSONResp<String> {
     let hashed_pass = match hash(login.password.clone(), DEFAULT_COST) {
         Err(e) => {
             log::error!("Error hashing password: {}", e);
-            return err_resp("Could not create user")
+            return internal_err_resp("Could not hash password")
         }
         Ok(p) => p
     };
@@ -126,17 +144,30 @@ pub fn create(conn: DbConn, login: Json<User>) -> JSONResp<String> {
     let user = User{username: login.username.clone(), password: hashed_pass};
     match db_users::insert(user, &conn) {
         Ok(_) => ok_resp(format!("Created user {}", login.username)),
-        Err(e) => err_resp(format!("Could not create user: {}", e)),
+        Err(e) => user_err_resp(format!("Could not create user: {}", e)),
     }
 }
 
 #[post("/api/v1/users/logout")]
-pub fn logout(mut cookies: Cookies<'_>) -> JSONResp<&'static str> {
+pub fn logout(conn: DbConn, token: ValidToken, mut cookies: Cookies<'_>) -> JSONResp<&'static str> {
     cookies.remove_private(Cookie::named("api_token"));
-    ok_resp("Successfully logged out")
+    match db_tokens::delete(token.id, &conn) {
+        Ok(_) => ok_resp("Successfully logged out"),
+        Err(e) => {
+             log::error!("Error removing valid DB token: {}", e);
+             return internal_err_resp("Could not log user out")
+        }
+
+    }
 }
 
 #[get("/api/v1/index")]
-pub fn user_index(user: User) -> JSONResp<User> {
-    ok_resp(user)
+pub fn user_index(conn: DbConn, token: ValidToken) -> JSONResp<User> {
+    match db_users::get(token.username, &conn) {
+       Ok(user) => ok_resp(user),
+       Err(e) => {
+            log::error!("Invalid user for valid token: {}", e);
+            return internal_err_resp("Could not retrieve user")
+       }
+    }
 }

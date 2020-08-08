@@ -4,6 +4,7 @@ use std::io;
 
 mod speedwagon;
 use speedwagon::api::v1::{items, users};
+use speedwagon::state;
 use speedwagon::db;
 use dotenv;
 
@@ -15,6 +16,8 @@ extern crate reqwest;
 extern crate time;
 extern crate bcrypt;
 #[macro_use] extern crate diesel;
+use rocket::fairing::AdHoc;
+
 
 fn main() {
     dotenv::dotenv().ok();
@@ -27,7 +30,12 @@ fn main() {
             users::login,
             users::logout,
             users::user_index,
-        ]).launch();
+        ])
+        .attach(AdHoc::on_attach("Environment tracker", |rocket| {
+            let env = rocket.config().environment.clone();
+            Ok(rocket.manage(state::Environment(env)))
+        }))
+        .launch();
 }
 
 fn setup_logging(verbosity: log::LevelFilter) -> Result<(), fern::InitError> {
