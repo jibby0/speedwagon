@@ -1,8 +1,8 @@
-use uuid::Uuid;
-use crate::speedwagon::schema::tokens;
 use crate::speedwagon::db::users::User;
+use crate::speedwagon::schema::tokens;
 use diesel::prelude::*;
 use time;
+use uuid::Uuid;
 
 pub type TokenId = Uuid;
 
@@ -12,7 +12,7 @@ pub type TokenId = Uuid;
 pub struct Token {
     pub id: TokenId,
     pub username: String,
-    pub expires: time::Timespec
+    pub expires: time::Timespec,
 }
 
 pub fn get(id: Uuid, connection: &PgConnection) -> QueryResult<Token> {
@@ -32,6 +32,5 @@ pub fn update(token: Token, connection: &PgConnection) -> QueryResult<Token> {
 }
 
 pub fn delete(id: Uuid, connection: &PgConnection) -> QueryResult<usize> {
-    diesel::delete(tokens::table.find(id))
-        .execute(connection)
+    diesel::delete(tokens::table.find(id)).execute(connection)
 }

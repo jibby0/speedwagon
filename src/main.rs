@@ -3,34 +3,39 @@
 use std::io;
 
 mod speedwagon;
-use speedwagon::api::v1::{items, users};
-use speedwagon::state;
-use speedwagon::db;
 use dotenv;
+use speedwagon::api::v1::{items, users};
+use speedwagon::db;
+use speedwagon::state;
 
 extern crate chrono;
 
-#[macro_use] extern crate rocket;
-extern crate rocket_contrib;
-extern crate reqwest;
-extern crate time;
+#[macro_use]
+extern crate rocket;
 extern crate bcrypt;
-#[macro_use] extern crate diesel;
+extern crate reqwest;
+extern crate rocket_contrib;
+extern crate time;
+#[macro_use]
+extern crate diesel;
 use rocket::fairing::AdHoc;
-
 
 fn main() {
     dotenv::dotenv().ok();
-    setup_logging(log::LevelFilter::Debug).expect("failed to initialize logging");
+    setup_logging(log::LevelFilter::Debug)
+        .expect("failed to initialize logging");
     rocket::ignite()
         .manage(db::init_pool())
-        .mount("/", routes![
-            items::index,
-            users::create,
-            users::login,
-            users::logout,
-            users::user_index,
-        ])
+        .mount(
+            "/",
+            routes![
+                items::index,
+                users::create,
+                users::login,
+                users::logout,
+                users::user_index,
+            ],
+        )
         .attach(AdHoc::on_attach("Environment tracker", |rocket| {
             let env = rocket.config().environment.clone();
             Ok(rocket.manage(state::Environment(env)))
@@ -53,9 +58,7 @@ fn setup_logging(verbosity: log::LevelFilter) -> Result<(), fern::InitError> {
         })
         .chain(io::stdout());
 
-    base_config
-        .chain(stdout_config)
-        .apply()?;
+    base_config.chain(stdout_config).apply()?;
 
     Ok(())
 }
