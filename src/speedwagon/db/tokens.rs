@@ -1,7 +1,19 @@
-use crate::speedwagon::api::v1::users::Token;
 use uuid::Uuid;
 use crate::speedwagon::schema::tokens;
+use crate::speedwagon::db::users::User;
 use diesel::prelude::*;
+use time;
+
+pub type TokenId = Uuid;
+
+#[derive(Queryable, AsChangeset, Debug, Associations, Insertable)]
+#[table_name = "tokens"]
+#[belongs_to(User, foreign_key = "username")]
+pub struct Token {
+    pub id: TokenId,
+    pub username: String,
+    pub expires: time::Timespec
+}
 
 pub fn get(id: Uuid, connection: &PgConnection) -> QueryResult<Token> {
     tokens::table.find(id).get_result::<Token>(connection)

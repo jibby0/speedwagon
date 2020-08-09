@@ -2,6 +2,10 @@ use rocket::response::status::Custom;
 use rocket::http::Status;
 use rocket::State;
 use rocket::http::{Cookie, Cookies};
+use rocket::request::{Request, FromRequest, Outcome};
+use crate::speedwagon::db::{DbConn, Pool, users, tokens};
+use crate::speedwagon::db::users::User;
+use crate::speedwagon::db::tokens::Token;
 use rocket_contrib::json::Json;
 use uuid::Uuid;
 use bcrypt::{DEFAULT_COST, hash, verify};
@@ -11,11 +15,6 @@ use time;
 use serde::{Serialize, Deserialize};
 
 use crate::speedwagon::state::Environment;
-use crate::speedwagon::db::DbConn;
-use crate::speedwagon::db::users as db_users;
-use crate::speedwagon::db::tokens as db_tokens;
-use crate::speedwagon::schema::users;
-use crate::speedwagon::schema::tokens;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Resp<T> {
@@ -51,11 +50,9 @@ pub fn internal_err_resp<U: Into<String>, T>(x: U) -> JSONResp<T> {
     ))
 }
 
-pub type TokenId = Uuid;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiTokenResp {
-    api_token: TokenId
+    api_token: tokens::TokenId
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,31 +62,64 @@ pub struct UserLogin {
     persistent: bool
 }
 
-#[derive(Queryable, AsChangeset, Serialize, Deserialize, Debug, Identifiable, Insertable)]
-#[table_name = "users"]
-#[primary_key("username")]
-pub struct User {
-    pub username: String,
-    pub password: String
-}
-
-#[derive(Queryable, AsChangeset, Debug, Associations, Insertable)]
-#[table_name = "tokens"]
-#[belongs_to(User, foreign_key = "username")]
-pub struct Token {
-    pub id: TokenId,
-    pub username: String,
-    pub expires: time::Timespec
-}
-
 pub struct ValidToken {
-    pub id: TokenId,
+    pub id: tokens::TokenId,
     pub username: String,
 }
+
+impl<'a, 'r> FromRequest<'a, 'r> for ValidToken {
+    type Error = ();
+
+    fn from_request(request: &'a Request<'r>) -> Outcome<ValidToken, Self::Error> {
+        let opt_token = request.headers().get_one("Authorization").and_then(
+            |bearer| {
+                // This is kinda awful, but whatever
+                let split_bearer: Vec<&str> = bearer.split_ascii_whitespace().collect();
+                match split_bearer[..] {
+                    [_, token] => Uuid::parse_str(token).ok().and_then(
+                        |token| {
+                            log::debug!("Found header token {}", token);
+                            Some(token)
+                        }),
+                    _ => None,
+                }
+            }
+        ).or_else(
+            || request.cookies()
+                .get_private("api_token")
+                .and_then(|cookie| cookie.value().parse().ok())
+                .and_then(|token| {
+                            log::debug!("Found cookie token {}", token);
+                            Some(token)
+                        }
+        ));
+        let token_id = match opt_token {
+            Some(token) => token,
+            None => return Outcome::Forward(()),
+        };
+
+        let pool = request.guard::<State<Pool>>()?;
+        let conn = match pool.get() {
+            Ok(conn) => DbConn(conn),
+            Err(_) => return Outcome::Failure((Status::ServiceUnavailable, ())),
+        };
+
+        let token = match tokens::get(token_id, &conn) {
+            Ok(token) => token,
+            Err(_) => return Outcome::Failure((Status::Unauthorized, ())),
+        };
+        if token.expires < time::now().to_timespec() {
+            return Outcome::Failure((Status::Unauthorized, ()))
+        }
+
+        Outcome::Success(ValidToken{id: token.id, username: token.username})
+    }
+}
+
 
 #[post("/api/v1/users/login", data = "<login>")]
 pub fn login(mut cookies: Cookies<'_>, conn: DbConn, rocket_env: State<Environment>, login: Json<UserLogin>) -> JSONResp<ApiTokenResp> {
-    let user = match db_users::get(login.username.clone(), &conn) {
+    let user = match users::get(login.username.clone(), &conn) {
         Err(_) => return user_err_resp(format!("User {} not found", login.username)),
         Ok(u) => u
     };
@@ -121,7 +151,7 @@ pub fn login(mut cookies: Cookies<'_>, conn: DbConn, rocket_env: State<Environme
     cookie.set_expires(expiration);
     cookies.add_private(cookie);
 
-    match db_tokens::insert(token, &conn) {
+    match tokens::insert(token, &conn) {
         Err(e) => {
             log::error!("Error inserting token into DB: {}", e);
             internal_err_resp("Could not save user token")
@@ -142,7 +172,7 @@ pub fn create(conn: DbConn, login: Json<User>) -> JSONResp<String> {
     log::debug!("Hashed {} as {}", login.password, hashed_pass);
 
     let user = User{username: login.username.clone(), password: hashed_pass};
-    match db_users::insert(user, &conn) {
+    match users::insert(user, &conn) {
         Ok(_) => ok_resp(format!("Created user {}", login.username)),
         Err(e) => user_err_resp(format!("Could not create user: {}", e)),
     }
@@ -151,7 +181,7 @@ pub fn create(conn: DbConn, login: Json<User>) -> JSONResp<String> {
 #[post("/api/v1/users/logout")]
 pub fn logout(conn: DbConn, token: ValidToken, mut cookies: Cookies<'_>) -> JSONResp<&'static str> {
     cookies.remove_private(Cookie::named("api_token"));
-    match db_tokens::delete(token.id, &conn) {
+    match tokens::delete(token.id, &conn) {
         Ok(_) => ok_resp("Successfully logged out"),
         Err(e) => {
              log::error!("Error removing valid DB token: {}", e);
@@ -163,7 +193,7 @@ pub fn logout(conn: DbConn, token: ValidToken, mut cookies: Cookies<'_>) -> JSON
 
 #[get("/api/v1/index")]
 pub fn user_index(conn: DbConn, token: ValidToken) -> JSONResp<User> {
-    match db_users::get(token.username, &conn) {
+    match users::get(token.username, &conn) {
        Ok(user) => ok_resp(user),
        Err(e) => {
             log::error!("Invalid user for valid token: {}", e);
