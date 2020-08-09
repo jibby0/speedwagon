@@ -4,9 +4,10 @@ use std::io;
 
 mod speedwagon;
 use dotenv;
-use speedwagon::api::v1::{items, users};
-use speedwagon::db;
-use speedwagon::state;
+use speedwagon::{
+    api::v1::{items, users},
+    db, state,
+};
 
 extern crate chrono;
 

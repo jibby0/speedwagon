@@ -4,11 +4,12 @@ pub mod users;
 use diesel::pg::PgConnection;
 use r2d2;
 use r2d2_diesel::ConnectionManager;
-use rocket::http::Status;
-use rocket::request::{self, FromRequest};
-use rocket::{Outcome, Request, State};
-use std::env;
-use std::ops::Deref;
+use rocket::{
+    http::Status,
+    request::{self, FromRequest},
+    Outcome, Request, State,
+};
+use std::{env, ops::Deref};
 
 pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 

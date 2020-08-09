@@ -2,3 +2,6 @@ max_width = 80
 ignore = [
     "src/speedwagon/schema.rs"
 ]
+reorder_impl_items = true
+merge_imports = true
+wrap_comments = true

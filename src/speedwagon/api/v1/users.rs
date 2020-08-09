@@ -1,13 +1,14 @@
-use crate::speedwagon::db::tokens::Token;
-use crate::speedwagon::db::users::User;
-use crate::speedwagon::db::{tokens, users, DbConn, Pool};
+use crate::speedwagon::db::{
+    tokens, tokens::Token, users, users::User, DbConn, Pool,
+};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use log;
-use rocket::http::Status;
-use rocket::http::{Cookie, Cookies};
-use rocket::request::{FromRequest, Outcome, Request};
-use rocket::response::status::Custom;
-use rocket::State;
+use rocket::{
+    http::{Cookie, Cookies, Status},
+    request::{FromRequest, Outcome, Request},
+    response::status::Custom,
+    State,
+};
 use rocket_contrib::json::Json;
 use time;
 use uuid::Uuid;

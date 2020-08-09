@@ -1,5 +1,4 @@
-use crate::speedwagon::db::users::User;
-use crate::speedwagon::schema::tokens;
+use crate::speedwagon::{db::users::User, schema::tokens};
 use diesel::prelude::*;
 use time;
 use uuid::Uuid;
