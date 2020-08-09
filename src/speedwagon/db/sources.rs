@@ -9,7 +9,8 @@ enum SourceData {
 
 #[derive(Queryable, AsChangeset, Serialize, Deserialize, Debug, Identifiable, Insertable)]
 #[table_name = "sources"]
-#[primary_key("username", "title")]
+#[primary_key("creator", "title")]
+#[belongs_to(User, foreign_key = "creator")]
 pub struct Source {
     pub title: String,
     pub data: SourceData,
@@ -17,12 +18,12 @@ pub struct Source {
     pub last_post: time::Timespec,
     pub last_successful_fetch: time::Timespec,
     pub fetch_errors: [String],
-    pub username: String,  // Should really be "creator" or something
+    pub creator: String,
     pub public: bool
 }
 
-pub fn all(connection: &PgConnection) -> QueryResult<Vec<User>> {
-    users::table.load::<User>(&*connection)
+pub fn all_from_user(username: String, connection: &PgConnection) -> QueryResult<Vec<Source>> {
+    sources::table.filter(creator.eq(username)).load::<Source>(&*connection)
 }
 
 pub fn get(username: String, connection: &PgConnection) -> QueryResult<User> {
