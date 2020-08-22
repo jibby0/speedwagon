@@ -1,16 +1,21 @@
-use crate::speedwagon::schema::users;
+use crate::schema::users;
 use diesel::prelude::*;
-use serde::{Serialize, Deserialize};
-use time;
+use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, AsChangeset, Serialize, Deserialize, Debug, Identifiable, Insertable)]
-#[table_name = "articles"]
-// #[primary_key("username")]
-pub struct Article {
-    pub title: String,
-    pub content: String,
-    pub date: time::Timespec,
-    // TODO more
+#[derive(
+    Queryable,
+    AsChangeset,
+    Serialize,
+    Deserialize,
+    Debug,
+    Identifiable,
+    Insertable,
+)]
+#[table_name = "users"]
+#[primary_key("username")]
+pub struct User {
+    pub username: String,
+    pub password: String,
 }
 
 pub fn all(connection: &PgConnection) -> QueryResult<Vec<User>> {
@@ -33,9 +38,9 @@ pub fn update(user: User, connection: &PgConnection) -> QueryResult<User> {
         .get_result(connection)
 }
 
-pub fn delete(username: String, connection: &PgConnection) -> QueryResult<usize> {
-    diesel::delete(users::table.find(username))
-        .execute(connection)
+pub fn delete(
+    username: String,
+    connection: &PgConnection,
+) -> QueryResult<usize> {
+    diesel::delete(users::table.find(username)).execute(connection)
 }
-
-

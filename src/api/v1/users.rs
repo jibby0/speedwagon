@@ -1,4 +1,4 @@
-use crate::speedwagon::db::{
+use crate::db::{
     tokens, tokens::Token, users, users::User, DbConn, Pool,
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use serde::{Deserialize, Serialize};
 
-use crate::speedwagon::state::Environment;
+use crate::state::Environment;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Resp<T> {
