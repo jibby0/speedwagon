@@ -12,6 +12,7 @@ extern crate diesel;
 
 pub mod api;
 pub mod db;
+pub mod fetch;
+pub mod logger;
 pub mod schema;
 pub mod state;
-pub mod logger;

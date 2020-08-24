@@ -5,7 +5,7 @@ extern crate rocket;
 use dotenv;
 use speedwagon::{
     api::v1::{items, users},
-    db, state, logger,
+    db, logger, state,
 };
 
 use rocket::fairing::AdHoc;

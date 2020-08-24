@@ -1,6 +1,8 @@
 use std::io;
 
-pub fn setup_logging(verbosity: log::LevelFilter) -> Result<(), fern::InitError> {
+pub fn setup_logging(
+    verbosity: log::LevelFilter,
+) -> Result<(), fern::InitError> {
     let base_config = fern::Dispatch::new().level(verbosity);
 
     let stdout_config = fern::Dispatch::new()

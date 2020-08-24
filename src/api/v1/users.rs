@@ -1,6 +1,4 @@
-use crate::db::{
-    tokens, tokens::Token, users, users::User, DbConn, Pool,
-};
+use crate::db::{tokens, tokens::Token, users, users::User, DbConn, Pool};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use log;
 use rocket::{
