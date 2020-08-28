@@ -1,4 +1,3 @@
-use crate::schema::users;
 use diesel::prelude::*;
 use serde::{Serialize, Deserialize};
 use time;

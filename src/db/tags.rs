@@ -1,13 +1,15 @@
+use crate::schema::tags;
+use crate::db::users::User;
 use diesel::prelude::*;
-use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-#[derive(Queryable, AsChangeset, Serialize, Deserialize, Debug, Identifiable, Insertable)]
+#[derive(Associations, Queryable, AsChangeset, Debug, Identifiable, Insertable)]
 #[table_name = "tags"]
 #[belongs_to(User, foreign_key = "owner")]
 pub struct Tag {
     pub id: Uuid,
     pub name: String,
+    pub owner: String,
     // TODO more
     // color?
 }

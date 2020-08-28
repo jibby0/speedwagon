@@ -1,29 +1,35 @@
+use crate::schema::sources;
 use crate::schema::users;
+use crate::db::users::User;
 use diesel::prelude::*;
 use serde::{Serialize, Deserialize};
 use time;
 use uuid::Uuid;
 
+#[derive(Serialize, Deserialize, Debug)]
 enum SourceData {
     RSS {url: String}
 }
 
-#[derive(Queryable, AsChangeset, Serialize, Deserialize, Debug, Identifiable, Insertable)]
+#[derive(Associations, Queryable, AsChangeset, Debug, Identifiable, Insertable)]
 #[table_name = "sources"]
-#[primary_key("id")]
 #[belongs_to(User, foreign_key = "creator")]
 pub struct Source {
     pub id: Uuid,
     pub title: String,
-    pub data: SourceData,
-    pub filter: String,
+    pub source_data: SourceData,
+    pub post_filter: String,
     pub last_post: time::Timespec,
     pub last_successful_fetch: time::Timespec,
-    pub fetch_errors: [String],
+    pub fetch_errors: Vec<String>,
     pub creator: String,
     // TODO optional config line for sharing
     // TODO optional config arg to make copies on Source changes, on untrusted servers
     pub public: bool
+}
+
+pub fn all(connection: &PgConnection) -> QueryResult<Vec<Source>> {
+    sources::table.load::<Source>(&*connection)
 }
 
 pub fn all_from_user(username: String, connection: &PgConnection) -> QueryResult<Vec<Source>> {

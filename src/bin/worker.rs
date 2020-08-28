@@ -11,7 +11,7 @@ fn main() {
         .expect("failed to initialize logging");
 
     let mut pool = db::init_pool();
-    let f = move || fetch::fetch_all_sources(&mut pool);
+    let f = move || fetch::fetch_from_all_sources(&mut pool);
     let mut scheduler = Scheduler::new();
     scheduler.every(10.minutes()).run(f);
 }
