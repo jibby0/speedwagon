@@ -1,5 +1,10 @@
+/Still very early alpha: API is still being built & is subject to change./
+
+/See the issues tab if you'd like to help change that!/
+
 * Speedwagon
 
-The backend of a web-based RSS reader & aggregation server.
+The backend of a web-based RSS reader & aggregation server. A more
+feature-rich/customizable [[selfoss][https://selfoss.aditu.de/]].
 
 Built with Rust + Rocket, using Postgres + Diesel for state management.
