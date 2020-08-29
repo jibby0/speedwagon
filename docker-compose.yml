@@ -1,5 +1,6 @@
 version: '3'
 
+// TODO web and worker need to be in here as well. Postgres was first to make dev work easier.
 services:
   postgres:
     image: postgres:13

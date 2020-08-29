@@ -1,0 +1,5 @@
+* Speedwagon
+
+The backend of a web-based RSS reader & aggregation server.
+
+Built with Rust + Rocket, using Postgres + Diesel for state management.
