@@ -1,5 +1,4 @@
-use crate::db::users::User;
-use crate::schema::tokens;
+use crate::{db::users::User, schema::tokens};
 use diesel::prelude::*;
 use time;
 use uuid::Uuid;

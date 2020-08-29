@@ -1,8 +1,8 @@
+pub mod sources;
+pub mod tagged_sources;
+pub mod tags;
 pub mod tokens;
 pub mod users;
-pub mod sources;
-pub mod tags;
-pub mod tagged_sources;
 
 use diesel::pg::PgConnection;
 use r2d2;

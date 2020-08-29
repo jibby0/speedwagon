@@ -1,21 +1,27 @@
-use crate::schema::tags;
-use crate::db::users::User;
+use crate::{db::users::User, schema::tags};
 use diesel::prelude::*;
 use uuid::Uuid;
 
-#[derive(Associations, Queryable, AsChangeset, Debug, Identifiable, Insertable)]
+#[derive(
+    Associations, Queryable, AsChangeset, Debug, Identifiable, Insertable,
+)]
 #[table_name = "tags"]
 #[belongs_to(User, foreign_key = "owner")]
 pub struct Tag {
     pub id: Uuid,
     pub name: String,
     pub owner: String,
-    // TODO more
-    // color?
+    /* TODO more
+     * color? */
 }
 
-pub fn all_from_user(username: String, connection: &PgConnection) -> QueryResult<Vec<Tag>> {
-    tags::table.filter(owner.eq(username)).load::<Tag>(&*connection)
+pub fn all_from_user(
+    username: String,
+    connection: &PgConnection,
+) -> QueryResult<Vec<Tag>> {
+    tags::table
+        .filter(tags::owner.eq(username))
+        .load::<Tag>(&*connection)
 }
 
 pub fn get(id: Uuid, connection: &PgConnection) -> QueryResult<Tag> {
@@ -35,6 +41,5 @@ pub fn update(tag: Tag, connection: &PgConnection) -> QueryResult<Tag> {
 }
 
 pub fn delete(id: Uuid, connection: &PgConnection) -> QueryResult<usize> {
-    diesel::delete(tags::table.find(id))
-        .execute(connection)
+    diesel::delete(tags::table.find(id)).execute(connection)
 }
