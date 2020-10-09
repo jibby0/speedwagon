@@ -1,4 +1,22 @@
 table! {
+    articles (id) {
+        id -> Uuid,
+        title -> Nullable<Text>,
+        published -> Nullable<Timestamp>,
+        source_info -> Json,
+        summary -> Nullable<Text>,
+        content -> Json,
+        rights -> Nullable<Text>,
+        links -> Json,
+        authors -> Json,
+        categories -> Json,
+        comments_url -> Nullable<Text>,
+        extensions -> Json,
+        source -> Uuid,
+    }
+}
+
+table! {
     sources (id) {
         id -> Uuid,
         title -> Text,
@@ -43,6 +61,7 @@ table! {
     }
 }
 
+joinable!(articles -> sources (source));
 joinable!(sources -> users (creator));
 joinable!(tagged_sources -> sources (source));
 joinable!(tagged_sources -> tags (tag));
@@ -50,6 +69,7 @@ joinable!(tags -> users (owner));
 joinable!(tokens -> users (username));
 
 allow_tables_to_appear_in_same_query!(
+    articles,
     sources,
     tagged_sources,
     tags,

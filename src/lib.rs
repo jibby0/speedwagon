@@ -5,6 +5,7 @@ extern crate chrono;
 extern crate rocket;
 extern crate bcrypt;
 extern crate reqwest;
+extern crate rfc822_sanitizer;
 extern crate rocket_contrib;
 extern crate time;
 #[macro_use]
@@ -15,4 +16,5 @@ pub mod db;
 pub mod fetch;
 pub mod logger;
 pub mod schema;
+pub mod sources;
 pub mod state;

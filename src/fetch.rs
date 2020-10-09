@@ -17,3 +17,5 @@ pub fn fetch_from_all_sources(pool: &mut db::Pool) {
         }
     };
 }
+
+fn fetch_from_source(conn: db::DbConn, source: sources::Source) {}

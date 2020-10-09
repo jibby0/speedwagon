@@ -22,6 +22,22 @@ CREATE TABLE sources (
   public BOOLEAN NOT NULL
 );
 
+CREATE TABLE articles (
+  id UUID PRIMARY KEY,
+  title TEXT,
+  published TIMESTAMP,
+  source_info JSON NOT NULL,
+  summary TEXT,
+  content JSON NOT NULL,
+  rights TEXT,
+  links JSON NOT NULL,
+  authors JSON NOT NULL,
+  categories JSON NOT NULL,
+  comments_url TEXT,
+  extensions JSON NOT NULL,
+  source UUID REFERENCES sources(id) NOT NULL
+);
+
 CREATE TABLE tags (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,

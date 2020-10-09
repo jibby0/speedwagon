@@ -1,3 +1,4 @@
+pub mod articles;
 pub mod sources;
 pub mod tagged_sources;
 pub mod tags;

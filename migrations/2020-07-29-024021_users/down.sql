@@ -2,5 +2,6 @@
 DROP TABLE tagged_sources;
 DROP TABLE tags;
 DROP TABLE tokens;
+DROP TABLE articles;
 DROP TABLE sources;
 DROP TABLE users;

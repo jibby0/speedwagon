@@ -1,6 +1,7 @@
 use crate::{
     db::{tagged_sources::TaggedSource, tags::Tag, users::User},
     schema::{sources, tagged_sources},
+    sources::rssatom,
 };
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 enum SourceData {
-    RSS { url: String },
+    RSSAtom(rssatom::RSSAtom),
 }
 
 #[derive(
