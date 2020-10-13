@@ -1,4 +1,7 @@
-use crate::db::articles::{Article, ArticleSource};
+use crate::{
+    db::articles::{Article, ArticleSource},
+    Result,
+};
 use atom_syndication;
 use chrono;
 use log;
@@ -6,11 +9,29 @@ use rfc822_sanitizer;
 use rss;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::io::BufReader;
+use std::{error::Error, fmt, io::BufReader};
 use uuid::Uuid;
 
-trait Fetch {
-    fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>, String>;
+pub trait Fetch {
+    fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>>;
+}
+
+#[derive(Debug)]
+pub struct RSSFetchError {
+    rss_error: rss::Error,
+    atom_error: atom_syndication::Error,
+}
+
+impl fmt::Display for RSSFetchError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}\n{}", self.rss_error, self.atom_error)
+    }
+}
+
+impl Error for RSSFetchError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.rss_error.source()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,15 +40,12 @@ pub struct RSSAtom {
 }
 
 impl Fetch for RSSAtom {
-    fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>, String> {
-        let resp =
-            match reqwest::blocking::get(&self.url).and_then(|r| r.text()) {
-                Ok(r) => r,
-                Err(e) => return Err(format!("{}", e)),
-            };
+    fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>> {
+        let resp = reqwest::blocking::get(&self.url).and_then(|r| r.text())?;
 
-        let rss_parse_err =
+        let rss_err =
             match rss::Channel::read_from(BufReader::new(resp.as_bytes())) {
+                Err(e) => e,
                 Ok(channel) => {
                     return Ok(channel
                         .into_items()
@@ -37,12 +55,12 @@ impl Fetch for RSSAtom {
                         })
                         .collect())
                 }
-                Err(e) => format!("RSS Channel parse failed: {}", e),
             };
 
-        let atom_parse_err = match atom_syndication::Feed::read_from(
-            BufReader::new(resp.as_bytes()),
-        ) {
+        let atom_err = match atom_syndication::Feed::read_from(BufReader::new(
+            resp.as_bytes(),
+        )) {
+            Err(e) => e,
             Ok(feed) => {
                 return Ok(feed
                     .entries
@@ -52,13 +70,12 @@ impl Fetch for RSSAtom {
                     })
                     .collect())
             }
-            Err(e) => format!("Atom Feed parse failed: {}", e),
         };
 
-        Err(format!(
-            "Could not parse data:\n{}\n{}",
-            rss_parse_err, atom_parse_err
-        ))
+        Err(Box::new(RSSFetchError {
+            rss_error: rss_err,
+            atom_error: atom_err,
+        }))
     }
 }
 
@@ -79,6 +96,7 @@ impl RSSAtom {
                 source_id,
                 date
             ),
+            _ => (),
         };
 
         let source_info = match item
@@ -143,11 +161,12 @@ impl RSSAtom {
             content: serde_json::to_value(entry.content())
                 .unwrap_or(serde_json::json!({})),
             rights: entry.rights().map(|s| s.to_string()),
-            links: serde_json::to_value(entry.links)
+            links: serde_json::to_value(&entry.links)
                 .unwrap_or(serde_json::json!([])),
-            authors: serde_json::to_value(entry.authors)
+            authors: serde_json::to_value(&entry.authors)
                 .unwrap_or(serde_json::json!([])),
-            categories: entry.categories,
+            categories: serde_json::to_value(&entry.categories)
+                .unwrap_or(serde_json::json!([])),
             comments_url: None,
             extensions: serde_json::to_value(entry.extensions())
                 .unwrap_or(serde_json::json!({})),
@@ -157,7 +176,7 @@ impl RSSAtom {
 
     fn rss_source_to_article_source(source: &rss::Source) -> ArticleSource {
         ArticleSource {
-            title: source.title(),
+            title: source.title().map(|s| s.to_string()),
             links: vec![source.url().to_string()],
         }
     }

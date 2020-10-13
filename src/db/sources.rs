@@ -10,7 +10,7 @@ use time;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
-enum SourceData {
+pub enum SourceData {
     RSSAtom(rssatom::RSSAtom),
 }
 
