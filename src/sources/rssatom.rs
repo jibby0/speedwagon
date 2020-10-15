@@ -24,7 +24,7 @@ pub struct RSSFetchError {
 
 impl fmt::Display for RSSFetchError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}\n{}", self.rss_error, self.atom_error)
+        write!(f, "RSS: ({}) Atom: ({})", self.rss_error, self.atom_error)
     }
 }
 
@@ -184,4 +184,32 @@ impl RSSAtom {
 
 fn opt_to_vector<T>(o: Option<T>) -> Vec<T> {
     o.into_iter().collect::<Vec<T>>()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn fetch_example_rss() {
+        let source_id = Uuid::new_v4();
+        let good_rss = RSSAtom{url: "http://rssfeeds.democratandchronicle.com/Democratandchronicle/news".to_string()};
+        let articles = good_rss.fetch(source_id).unwrap();
+        for a in &articles {
+            assert!(a.source == source_id);
+            println!("{:?}", a);
+        }
+    }
+
+    #[test]
+    fn fetch_bad_rss() {
+        let source_id = Uuid::new_v4();
+        let bad_rss = RSSAtom {
+            url: "http://example.com".to_string(),
+        };
+        let articles = bad_rss.fetch(source_id);
+        match articles {
+            Ok(a) => panic!("{:?}", a),
+            Err(_) => (),
+        }
+    }
 }
