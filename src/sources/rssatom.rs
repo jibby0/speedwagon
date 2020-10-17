@@ -196,7 +196,7 @@ mod tests {
         let articles = good_rss.fetch(source_id).unwrap();
         for a in &articles {
             assert!(a.source == source_id);
-            println!("{:?}", a);
+            println!("{:#?}", a);
         }
     }
 
@@ -206,10 +206,6 @@ mod tests {
         let bad_rss = RSSAtom {
             url: "http://example.com".to_string(),
         };
-        let articles = bad_rss.fetch(source_id);
-        match articles {
-            Ok(a) => panic!("{:?}", a),
-            Err(_) => (),
-        }
+        bad_rss.fetch(source_id).unwrap_err();
     }
 }
