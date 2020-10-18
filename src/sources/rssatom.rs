@@ -1,9 +1,10 @@
 use crate::{
     db::articles::{Article, ArticleSource},
+    schema::articles,
     Result,
 };
 use atom_syndication;
-use chrono;
+use diesel::prelude::*;
 use log;
 use rfc822_sanitizer;
 use rss;
@@ -12,8 +13,17 @@ use serde_json;
 use std::{error::Error, fmt, io::BufReader};
 use uuid::Uuid;
 
-pub trait Fetch {
+/// Methods specific to a kind of source (ex: RSS)
+pub trait SourceData {
+    // Pull available articles from a source.
     fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>>;
+    // Remove articles from a list that already exist in the db.
+    fn unique(
+        &self,
+        source_id: Uuid,
+        articles: &mut Vec<Article>,
+        conn: &PgConnection,
+    ) -> Result<()>;
 }
 
 #[derive(Debug)]
@@ -39,7 +49,7 @@ pub struct RSSAtom {
     url: String,
 }
 
-impl Fetch for RSSAtom {
+impl SourceData for RSSAtom {
     fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>> {
         let resp = reqwest::blocking::get(&self.url).and_then(|r| r.text())?;
 
@@ -76,6 +86,71 @@ impl Fetch for RSSAtom {
             rss_error: rss_err,
             atom_error: atom_err,
         }))
+    }
+
+    fn unique(
+        &self,
+        source_id: Uuid,
+        articles: &mut Vec<Article>,
+        conn: &PgConnection,
+    ) -> Result<()> {
+        // http://www.詹姆斯.com/blog/2006/08/rss-dup-detection
+        // Using this heirarchy: GUID -> link -> Title -> Desc -> Content
+        //  Pick at least 2 that aren't empty, and filter for those.
+
+        let mut indexes_to_keep: Vec<bool> = Vec::new();
+
+        for article in articles.iter() {
+            let mut query = articles::table
+                .select(articles::id)
+                .filter(articles::source.eq(&source_id))
+                .into_boxed();
+            let mut filters = 0;
+            if let Some(id) = &article.id_from_source {
+                query = query.filter(articles::id_from_source.eq(id));
+                filters += 1;
+            };
+
+            let deserialized_links: std::result::Result<
+                Vec<String>,
+                serde_json::Error,
+            > = serde_json::from_value(article.links.to_owned());
+            if let Ok(links) = deserialized_links {
+                if links.len() >= 1 {
+                    query = query
+                        .filter(articles::links.eq(article.links.to_owned()));
+                    filters += 1;
+                }
+            };
+
+            if filters < 2 {
+                if let Some(title) = &article.title {
+                    query = query.filter(articles::title.eq(title));
+                    filters += 1;
+                };
+            }
+
+            if filters < 2 {
+                if let Some(summary) = &article.summary {
+                    query = query.filter(articles::summary.eq(summary));
+                    filters += 1;
+                };
+            }
+
+            if filters < 2 {
+                query = query
+                    .filter(articles::content.eq(article.content.to_owned()));
+            }
+
+            let similar_articles: Vec<Uuid> = query.load(conn)?;
+            // Matches 1 or more(?) articles, don't return it
+            indexes_to_keep.push(similar_articles.len() == 0);
+        }
+
+        let mut i = 0;
+        articles.retain(|_| (indexes_to_keep[i], i += 1).0);
+
+        Ok(())
     }
 }
 
@@ -140,6 +215,9 @@ impl RSSAtom {
             extensions: serde_json::to_value(item.extensions())
                 .unwrap_or(serde_json::json!({})),
             source: source_id,
+            id_from_source: item
+                .guid()
+                .and_then(|guid| Some(guid.value().to_string())),
         }
     }
 
@@ -171,6 +249,7 @@ impl RSSAtom {
             extensions: serde_json::to_value(entry.extensions())
                 .unwrap_or(serde_json::json!({})),
             source: source_id,
+            id_from_source: Some(entry.id.to_owned()),
         }
     }
 

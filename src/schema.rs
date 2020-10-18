@@ -13,6 +13,7 @@ table! {
         comments_url -> Nullable<Text>,
         extensions -> Json,
         source -> Uuid,
+        id_from_source -> Nullable<Text>,
     }
 }
 

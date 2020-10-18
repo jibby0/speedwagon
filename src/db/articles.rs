@@ -1,6 +1,7 @@
 use crate::{db::sources::Source, schema::articles};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use time;
 use uuid::Uuid;
 
@@ -23,6 +24,7 @@ pub struct Article {
     pub comments_url: Option<String>,
     pub extensions: serde_json::Value,
     pub source: Uuid,
+    pub id_from_source: Option<String>,
     /* TODO more
      * icon/thumbnail? */
 }

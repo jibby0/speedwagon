@@ -35,7 +35,8 @@ CREATE TABLE articles (
   categories JSON NOT NULL,
   comments_url TEXT,
   extensions JSON NOT NULL,
-  source UUID REFERENCES sources(id) NOT NULL
+  source UUID REFERENCES sources(id) NOT NULL,
+  id_from_source TEXT
 );
 
 CREATE TABLE tags (
