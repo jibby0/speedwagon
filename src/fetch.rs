@@ -1,38 +1,47 @@
 use crate::{
     db,
-    db::{articles::Article, sources},
+    db::{articles, articles::Article, sources},
     sources::rssatom::SourceData,
     Result,
 };
-use log;
+use time;
 use uuid::Uuid;
 
-pub fn fetch_new_from_all_sources(pool: &mut db::Pool) {
-    let conn = match pool.get() {
-        Ok(conn) => db::DbConn(conn),
-        Err(e) => {
-            log::error!("{}", e);
-            return;
-        }
-    };
-    let sources = match sources::all(&*conn) {
-        Ok(srcs) => srcs,
-        Err(e) => {
-            log::error!("{}", e);
-            return;
-        }
-    };
-    for source in sources {
+const MAX_FETCH_ERRORS: usize = 10;
+
+pub fn fetch_new_from_all_sources(pool: &mut db::Pool) -> Result<()> {
+    let conn = db::DbConn(pool.get()?);
+    let mut sources = sources::all(&*conn)?;
+
+    for source in &mut sources {
+        let fetch_time = time::now();
         let new_articles = match fetch_new_from_source(&conn, &source) {
             Ok(articles) => articles,
             Err(e) => {
                 // Likely communication problems when connecting to the source
-                // TODO update the source with `e`
+                source.fetch_errors.push(format!(
+                    "{}: {}",
+                    fetch_time.rfc822(),
+                    e
+                ));
+                // Only keep the latest errors
+                if source.fetch_errors.len() > MAX_FETCH_ERRORS {
+                    source.fetch_errors.drain(
+                        0..(source.fetch_errors.len() - MAX_FETCH_ERRORS),
+                    );
+                }
+                sources::update(source, &conn)?;
                 continue;
             }
         };
-        // TODO add new articles
+
+        source.last_successful_fetch = fetch_time.to_timespec();
+        for article in new_articles {
+            articles::insert(article, &conn)?;
+        }
     }
+
+    Ok(())
 }
 
 fn fetch_new_from_source(

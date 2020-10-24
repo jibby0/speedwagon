@@ -82,7 +82,7 @@ pub fn insert(
 }
 
 pub fn update(
-    source: Source,
+    source: &Source,
     connection: &PgConnection,
 ) -> QueryResult<Source> {
     diesel::update(sources::table.find(source.id.clone()))

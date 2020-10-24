@@ -11,7 +11,14 @@ fn main() {
         .expect("failed to initialize logging");
 
     let mut pool = db::init_pool();
-    let f = move || fetch::fetch_new_from_all_sources(&mut pool);
+    // TODO would an "update_requested" flag on each source be better?
+    // A background worker could then do these pulls in parallel,
+    //  and another task sets "update_requested=True" on each source
+    //  every ~10 mins.
+    let f = move || match fetch::fetch_new_from_all_sources(&mut pool) {
+        Err(e) => log::error!("{}", e),
+        _ => (),
+    };
     let mut scheduler = Scheduler::new();
     scheduler.every(10.minutes()).run(f);
 }
