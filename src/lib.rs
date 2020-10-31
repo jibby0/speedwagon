@@ -18,6 +18,7 @@ pub mod logger;
 pub mod schema;
 pub mod sources;
 pub mod state;
+pub mod timestamp;
 
 use std::{error::Error, result::Result as StdResult};
 type Result<T> = StdResult<T, Box<dyn Error>>;

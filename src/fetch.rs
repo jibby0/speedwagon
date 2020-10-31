@@ -2,6 +2,7 @@ use crate::{
     db,
     db::{articles, articles::Article, sources},
     sources::rssatom::SourceData,
+    timestamp::Timestamp,
     Result,
 };
 use time;
@@ -35,7 +36,7 @@ pub fn fetch_new_from_all_sources(pool: &mut db::Pool) -> Result<()> {
             }
         };
 
-        source.last_successful_fetch = fetch_time.to_timespec();
+        source.last_successful_fetch = Timestamp(fetch_time.to_timespec());
         for article in new_articles {
             articles::insert(article, &conn)?;
         }
