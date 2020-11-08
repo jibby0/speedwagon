@@ -37,10 +37,9 @@ pub struct Source {
     pub last_successful_fetch: Timestamp,
     pub fetch_errors: Vec<String>,
     pub creator: String,
-    // TODO optional config line for sharing
-    // TODO optional config arg to make copies on Source changes, on untrusted
-    // servers
-    pub public: bool,
+    /* TODO optional config line for sharing
+     * TODO optional config arg to make copies on Source changes, on
+     * untrusted servers */
 }
 
 pub fn all(connection: &PgConnection) -> QueryResult<Vec<Source>> {
@@ -53,12 +52,6 @@ pub fn all_from_user(
 ) -> QueryResult<Vec<Source>> {
     sources::table
         .filter(sources::creator.eq(username))
-        .load::<Source>(&*connection)
-}
-
-pub fn all_public(connection: &PgConnection) -> QueryResult<Vec<Source>> {
-    sources::table
-        .filter(sources::public.eq(true))
         .load::<Source>(&*connection)
 }
 
@@ -99,4 +92,5 @@ pub fn update(
 
 pub fn delete(id: Uuid, connection: &PgConnection) -> QueryResult<usize> {
     diesel::delete(sources::table.find(id)).execute(connection)
+    // TODO delete articles under this source?
 }

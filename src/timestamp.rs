@@ -17,6 +17,12 @@ use time;
 #[sql_type = "sql_types::Timestamp"]
 pub struct Timestamp(pub time::Timespec);
 
+impl Timestamp {
+    pub fn now() -> Timestamp {
+        Timestamp(time::now().to_timespec())
+    }
+}
+
 impl Serialize for Timestamp {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

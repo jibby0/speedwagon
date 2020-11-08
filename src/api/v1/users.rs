@@ -72,17 +72,19 @@ pub fn login(
     })
 }
 
-#[post("/api/v1/users/create", data = "<login>")]
-pub fn create(conn: DbConn, login: Json<User>) -> JSONResp<String> {
-    let hashed_pass = hash(login.password.clone(), DEFAULT_COST)?;
-    log::debug!("Hashed {} as {}", login.password, hashed_pass);
+#[post("/api/v1/users/create", data = "<user>")]
+pub fn create(conn: DbConn, user: Json<User>) -> JSONResp<String> {
+    let hashed_pass = hash(user.password.clone(), DEFAULT_COST)?;
+    log::debug!("Hashed {} as {}", user.password.clone(), hashed_pass);
 
     let user = User {
-        username: login.username.clone(),
+        username: user.username.clone(),
         password: hashed_pass,
     };
+
+    let username = user.username.clone();
     match users::insert(user, &conn) {
-        Ok(_) => ok_resp(format!("Created user {}", login.username)),
+        Ok(_) => ok_resp(format!("Created user {}", username)),
         Err(e) => user_err_resp(format!("Could not create user: {}", e)),
     }
 }
