@@ -37,9 +37,32 @@ pub struct Source {
     pub last_successful_fetch: Timestamp,
     pub fetch_errors: Vec<String>,
     pub creator: String,
+    pub fetching: bool,
     /* TODO optional config line for sharing
      * TODO optional config arg to make copies on Source changes, on
      * untrusted servers */
+}
+
+impl Source {
+    pub fn new(
+        id: Option<Uuid>,
+        title: String,
+        source_data: serde_json::Value,
+        post_filter: String,
+        creator: String,
+    ) -> Source {
+        Source {
+            id: id.unwrap_or_else(Uuid::new_v4),
+            title,
+            source_data,
+            post_filter,
+            creator,
+            last_successful_fetch: Timestamp::now(),
+            last_post: Timestamp::now(),
+            fetch_errors: Vec::new(),
+            fetching: false,
+        }
+    }
 }
 
 pub fn all(connection: &PgConnection) -> QueryResult<Vec<Source>> {

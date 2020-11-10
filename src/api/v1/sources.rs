@@ -4,7 +4,6 @@ use crate::{
         sources::{self, Source, SourceData},
         users, DbConn,
     },
-    timestamp::Timestamp,
 };
 
 use rocket_contrib::{self, json::Json};
@@ -58,17 +57,13 @@ pub fn source_create(
 ) -> JSONResp<Source> {
     let s = source.into_inner();
     let new_source = sources::insert(
-        Source {
-            id: Uuid::new_v4(),
-            // TODO fetch title if none was provided
-            title: s.title.unwrap_or_else(|| "".to_string()),
-            source_data: serde_json::to_value(s.source_data).unwrap(),
-            post_filter: s.post_filter,
-            creator: token.username,
-            last_successful_fetch: Timestamp::now(),
-            last_post: Timestamp::now(),
-            fetch_errors: Vec::new(),
-        },
+        Source::new(
+            None,
+            s.title.unwrap_or_else(|| "".to_string()),
+            serde_json::to_value(s.source_data).unwrap(),
+            s.post_filter,
+            token.username,
+        ),
         &conn,
     )?;
     ok_resp(new_source)
