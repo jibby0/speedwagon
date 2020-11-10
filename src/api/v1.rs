@@ -4,7 +4,6 @@ pub mod users;
 
 use crate::db::{tokens, DbConn, Pool};
 use bcrypt::BcryptError;
-use log;
 use rocket::{
     http::Status,
     request::{FromRequest, Outcome, Request},
@@ -13,7 +12,6 @@ use rocket::{
 };
 use rocket_contrib::json::Json;
 use std::{error::Error, result::Result};
-use time;
 use uuid::Uuid;
 
 use serde::{Deserialize, Serialize};
@@ -32,7 +30,7 @@ impl ApiError {
             status,
             Json(Resp {
                 status: "error",
-                contents: contents,
+                contents,
             }),
         ))
     }
@@ -101,12 +99,10 @@ impl<'a, 'r> FromRequest<'a, 'r> for ValidToken {
                 let split_bearer: Vec<&str> =
                     bearer.split_ascii_whitespace().collect();
                 match split_bearer[..] {
-                    [_, token] => {
-                        Uuid::parse_str(token).ok().and_then(|token| {
-                            log::debug!("Found header token {}", token);
-                            Some(token)
-                        })
-                    }
+                    [_, token] => Uuid::parse_str(token).ok().map(|token| {
+                        log::debug!("Found header token {}", token);
+                        token
+                    }),
                     _ => None,
                 }
             })
@@ -115,9 +111,9 @@ impl<'a, 'r> FromRequest<'a, 'r> for ValidToken {
                     .cookies()
                     .get_private("api_token")
                     .and_then(|cookie| cookie.value().parse().ok())
-                    .and_then(|token| {
+                    .map(|token| {
                         log::debug!("Found cookie token {}", token);
-                        Some(token)
+                        token
                     })
             });
         let token_id = match opt_token {

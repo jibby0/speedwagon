@@ -1,8 +1,7 @@
 use crate::{db::sources::Source, schema::articles};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use serde_json;
-use time;
+
 use uuid::Uuid;
 
 #[derive(
@@ -68,7 +67,7 @@ pub fn update(
     article: Article,
     connection: &PgConnection,
 ) -> QueryResult<Article> {
-    diesel::update(articles::table.find(article.id.clone()))
+    diesel::update(articles::table.find(article.id))
         .set(article)
         .get_result(connection)
 }

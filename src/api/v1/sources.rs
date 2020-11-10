@@ -6,7 +6,6 @@ use crate::{
     },
     timestamp::Timestamp,
 };
-use serde_json;
 
 use rocket_contrib::{self, json::Json};
 use serde::{Deserialize, Serialize};
@@ -62,7 +61,7 @@ pub fn source_create(
         Source {
             id: Uuid::new_v4(),
             // TODO fetch title if none was provided
-            title: s.title.unwrap_or("".to_string()),
+            title: s.title.unwrap_or_else(|| "".to_string()),
             source_data: serde_json::to_value(s.source_data).unwrap(),
             post_filter: s.post_filter,
             creator: token.username,

@@ -6,7 +6,7 @@ use crate::{
 };
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use serde_json;
+
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -63,9 +63,7 @@ pub fn all_from_tag(
         .filter(tagged_sources::tag.eq(tag.id))
         .inner_join(sources::table)
         .load::<(TaggedSource, Source)>(&*connection)
-        // TODO There's probably a more DSL-oriented way to transform
-        // (TaggedSource, Source) -> Source.
-        .and_then(|v| Ok(v.into_iter().map(|(_tagged_src, src)| src).collect()))
+        .map(|v| v.into_iter().map(|(_tagged_src, src)| src).collect())
 }
 
 pub fn get(id: Uuid, connection: &PgConnection) -> QueryResult<Source> {
@@ -85,7 +83,7 @@ pub fn update(
     source: &Source,
     connection: &PgConnection,
 ) -> QueryResult<Source> {
-    diesel::update(sources::table.find(source.id.clone()))
+    diesel::update(sources::table.find(source.id))
         .set(source)
         .get_result(connection)
 }

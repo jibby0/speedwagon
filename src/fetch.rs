@@ -5,7 +5,7 @@ use crate::{
     timestamp::Timestamp,
     Result,
 };
-use time;
+
 use uuid::Uuid;
 
 const MAX_FETCH_ERRORS: usize = 10;

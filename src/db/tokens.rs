@@ -1,6 +1,6 @@
 use crate::{db::users::User, schema::tokens};
 use diesel::prelude::*;
-use time;
+
 use uuid::Uuid;
 
 pub type TokenId = Uuid;

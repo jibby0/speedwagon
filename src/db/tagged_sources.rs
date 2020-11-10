@@ -36,7 +36,7 @@ pub fn update(
     tagged_src: TaggedSource,
     connection: &PgConnection,
 ) -> QueryResult<TaggedSource> {
-    diesel::update(tagged_sources::table.find(tagged_src.id.clone()))
+    diesel::update(tagged_sources::table.find(tagged_src.id))
         .set(tagged_src)
         .get_result(connection)
 }

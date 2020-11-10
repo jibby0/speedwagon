@@ -35,7 +35,7 @@ pub fn insert(tag: Tag, connection: &PgConnection) -> QueryResult<Tag> {
 }
 
 pub fn update(tag: Tag, connection: &PgConnection) -> QueryResult<Tag> {
-    diesel::update(tags::table.find(tag.id.clone()))
+    diesel::update(tags::table.find(tag.id))
         .set(tag)
         .get_result(connection)
 }

@@ -3,13 +3,11 @@ use crate::{
     schema::articles,
     Result,
 };
-use atom_syndication;
+
 use diesel::prelude::*;
-use log;
-use rfc822_sanitizer;
-use rss;
+
 use serde::{Deserialize, Serialize};
-use serde_json;
+
 use std::{error::Error, fmt, io::BufReader};
 use uuid::Uuid;
 
@@ -98,7 +96,7 @@ impl SourceData for RSSAtom {
         // Using this heirarchy: GUID -> link -> Title -> Desc -> Content
         //  Pick at least 2 that aren't empty, and filter for those.
 
-        let mut indexes_to_keep: Vec<bool> = Vec::new();
+        let mut indexes_to_keep: Vec<bool> = Vec::with_capacity(articles.len());
 
         for article in articles.iter() {
             let mut query = articles::table
@@ -116,7 +114,7 @@ impl SourceData for RSSAtom {
                 serde_json::Error,
             > = serde_json::from_value(article.links.to_owned());
             if let Ok(links) = deserialized_links {
-                if links.len() >= 1 {
+                if !links.is_empty() {
                     query = query
                         .filter(articles::links.eq(article.links.to_owned()));
                     filters += 1;
@@ -143,8 +141,7 @@ impl SourceData for RSSAtom {
             }
 
             let similar_articles: Vec<Uuid> = query.load(conn)?;
-            // Matches 1 or more(?) articles, don't return it
-            indexes_to_keep.push(similar_articles.len() == 0);
+            indexes_to_keep.push(similar_articles.is_empty());
         }
 
         let mut i = 0;
@@ -165,19 +162,18 @@ impl RSSAtom {
                 nsec: 0,
             });
         // Did we get a date, but not a result?
-        match (item.pub_date(), ts) {
-            (Some(date), None) => log::debug!(
+        if let (Some(date), None) = (item.pub_date(), ts) {
+            log::debug!(
                 "Could not parse from source {} as date: {}",
                 source_id,
                 date
-            ),
-            _ => (),
+            );
         };
 
         let source_info = match item
             .source()
             .map(|source| RSSAtom::rss_source_to_article_source(source))
-            .map(|source| serde_json::to_value(source))
+            .map(serde_json::to_value)
         {
             Some(Ok(v)) => v,
             Some(Err(e)) => {
@@ -191,7 +187,7 @@ impl RSSAtom {
             id: Uuid::new_v4(),
             title: item.title().map(|s| s.to_string()),
             published: ts,
-            source_info: source_info,
+            source_info,
             summary: None,
             content: serde_json::json!({"value": item.content().map(|s| s.to_string())}),
             rights: None,
@@ -207,17 +203,15 @@ impl RSSAtom {
             // domain -> scheme
             categories: item
                 .categories()
-                .into_iter()
+                .iter()
                 .map(|c| c.name().to_string())
                 .collect(),
             comments_url: item.comments().map(|s| s.to_string()),
             // TODO serialize Extension
             extensions: serde_json::to_value(item.extensions())
-                .unwrap_or(serde_json::json!({})),
+                .unwrap_or_else(|_| serde_json::json!({})),
             source: source_id,
-            id_from_source: item
-                .guid()
-                .and_then(|guid| Some(guid.value().to_string())),
+            id_from_source: item.guid().map(|guid| guid.value().to_string()),
         }
     }
 
@@ -237,17 +231,17 @@ impl RSSAtom {
                 .unwrap(),
             summary: entry.summary().map(|s| s.to_string()),
             content: serde_json::to_value(entry.content())
-                .unwrap_or(serde_json::json!({})),
+                .unwrap_or_else(|_| serde_json::json!({})),
             rights: entry.rights().map(|s| s.to_string()),
             links: serde_json::to_value(&entry.links)
-                .unwrap_or(serde_json::json!([])),
+                .unwrap_or_else(|_| serde_json::json!([])),
             authors: serde_json::to_value(&entry.authors)
-                .unwrap_or(serde_json::json!([])),
+                .unwrap_or_else(|_| serde_json::json!([])),
             categories: serde_json::to_value(&entry.categories)
-                .unwrap_or(serde_json::json!([])),
+                .unwrap_or_else(|_| serde_json::json!([])),
             comments_url: None,
             extensions: serde_json::to_value(entry.extensions())
-                .unwrap_or(serde_json::json!({})),
+                .unwrap_or_else(|_| serde_json::json!({})),
             source: source_id,
             id_from_source: Some(entry.id.to_owned()),
         }

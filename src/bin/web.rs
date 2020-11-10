@@ -2,9 +2,8 @@ extern crate speedwagon;
 #[macro_use]
 extern crate rocket;
 
-use dotenv;
 use speedwagon::{
-    api::v1::{items, users, sources},
+    api::v1::{items, sources, users},
     db, logger, state,
 };
 
@@ -31,7 +30,7 @@ fn main() {
             ],
         )
         .attach(AdHoc::on_attach("Environment tracker", |rocket| {
-            let env = rocket.config().environment.clone();
+            let env = rocket.config().environment;
             Ok(rocket.manage(state::Environment(env)))
         }))
         .launch();

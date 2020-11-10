@@ -5,13 +5,11 @@ use crate::{
     db::{tokens, tokens::Token, users, users::User, DbConn},
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
-use log;
 use rocket::{
     http::{Cookie, Cookies},
     State,
 };
 use rocket_contrib::json::Json;
-use time;
 use uuid::Uuid;
 
 use serde::{Deserialize, Serialize};
@@ -67,13 +65,15 @@ pub fn user_login(
     cookies.add_private(cookie);
 
     tokens::insert(token, &conn)?;
-    ok_resp(ApiTokenResp {
-        api_token: api_token,
-    })
+    ok_resp(ApiTokenResp { api_token })
 }
 
 #[post("/user", data = "<user>")]
-pub fn user_create(conn: DbConn, user: Json<User>, rocket_env: State<Environment>) -> JSONResp<String> {
+pub fn user_create(
+    conn: DbConn,
+    user: Json<User>,
+    rocket_env: State<Environment>,
+) -> JSONResp<String> {
     let hashed_pass = hash(user.password.clone(), DEFAULT_COST)?;
     if !rocket_env.inner().0.is_prod() {
         log::debug!("Hashed {} as {}", user.password.clone(), hashed_pass);
@@ -92,10 +92,17 @@ pub fn user_create(conn: DbConn, user: Json<User>, rocket_env: State<Environment
 }
 
 #[put("/user", data = "<user>")]
-pub fn user_change_pass(conn: DbConn, user: Json<User>, rocket_env: State<Environment>, token: ValidToken) -> JSONResp<String> {
-
+pub fn user_change_pass(
+    conn: DbConn,
+    user: Json<User>,
+    rocket_env: State<Environment>,
+    token: ValidToken,
+) -> JSONResp<String> {
     if token.username != user.username {
-        return user_err_resp(format!("Signed in as user {}, cannot change password for user {}", token.username, user.username))
+        return user_err_resp(format!(
+            "Signed in as user {}, cannot change password for user {}",
+            token.username, user.username
+        ));
     }
 
     let hashed_pass = hash(user.password.clone(), DEFAULT_COST)?;
@@ -125,7 +132,7 @@ pub fn user_logout(
         Ok(_) => ok_resp("Successfully logged out"),
         Err(e) => {
             log::error!("Error removing valid DB token: {}", e);
-            return internal_err_resp("Could not log user out");
+            internal_err_resp("Could not log user out")
         }
     }
 }

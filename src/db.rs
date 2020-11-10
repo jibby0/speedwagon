@@ -6,7 +6,7 @@ pub mod tokens;
 pub mod users;
 
 use diesel::pg::PgConnection;
-use r2d2;
+
 use r2d2_diesel::ConnectionManager;
 use rocket::{
     http::Status,

@@ -11,7 +11,6 @@ use serde::{
     de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::{fmt, io::Write};
-use time;
 
 #[derive(Debug, AsExpression, FromSqlRow, PartialEq, Clone)]
 #[sql_type = "sql_types::Timestamp"]
