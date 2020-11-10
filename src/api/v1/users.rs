@@ -137,7 +137,20 @@ pub fn user_logout(
     }
 }
 
-#[get("/index")]
+#[delete("/user")]
+pub fn user_delete(
+    conn: DbConn,
+    token: ValidToken,
+    mut cookies: Cookies<'_>,
+) -> JSONResp<&'static str> {
+    cookies.remove_private(Cookie::named("api_token"));
+    tokens::delete(token.id, &conn)?;
+    users::delete(token.username, &conn)?;
+
+    ok_resp("Successfully deleted user")
+}
+
+#[get("/user")]
 pub fn user_index(conn: DbConn, token: ValidToken) -> JSONResp<User> {
     ok_resp(users::get(token.username, &conn)?)
 }

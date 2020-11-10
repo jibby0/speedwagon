@@ -19,20 +19,20 @@ pub struct SourceCreatePayload {
 }
 
 /// FromData is not implemented on rocket_contrib's UUID, so
-/// this JSON payload is used for deletion
+/// this JSON payload is used
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SourceDeletePayload {
+pub struct SourceIDPayload {
     pub id: Uuid,
 }
 
-#[get("/sources")]
+#[get("/source")]
 pub fn sources_list(conn: DbConn, token: ValidToken) -> JSONResp<Vec<Source>> {
     let user = users::get(token.username, &conn)?;
     let sources = sources::all_from_user(user.username, &conn)?;
     ok_resp(sources)
 }
 
-#[put("/sources", data = "<source>")]
+#[put("/source", data = "<source>")]
 pub fn source_update(
     conn: DbConn,
     token: ValidToken,
@@ -50,7 +50,7 @@ pub fn source_update(
     ok_resp(updated_source)
 }
 
-#[post("/sources", data = "<source>")]
+#[post("/source", data = "<source>")]
 pub fn source_create(
     conn: DbConn,
     token: ValidToken,
@@ -74,11 +74,11 @@ pub fn source_create(
     ok_resp(new_source)
 }
 
-#[delete("/sources", data = "<source>")]
+#[delete("/source", data = "<source>")]
 pub fn source_delete(
     conn: DbConn,
     token: ValidToken,
-    source: Json<SourceDeletePayload>,
+    source: Json<SourceIDPayload>,
 ) -> JSONResp<String> {
     let user = users::get(token.username, &conn)?;
     let source_to_delete = sources::get(source.into_inner().id, &conn)?;
