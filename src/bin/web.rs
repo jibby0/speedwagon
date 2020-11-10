@@ -4,7 +4,7 @@ extern crate rocket;
 
 use dotenv;
 use speedwagon::{
-    api::v1::{items, users},
+    api::v1::{items, users, sources},
     db, logger, state,
 };
 
@@ -17,13 +17,17 @@ fn main() {
     rocket::ignite()
         .manage(db::init_pool())
         .mount(
-            "/",
+            "/api/v1/",
             routes![
                 items::index,
                 users::user_create,
                 users::user_login,
                 users::user_logout,
                 users::user_index,
+                sources::source_create,
+                sources::sources_list,
+                sources::source_update,
+                sources::source_delete,
             ],
         )
         .attach(AdHoc::on_attach("Environment tracker", |rocket| {

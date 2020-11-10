@@ -30,7 +30,7 @@ pub struct UserLogin {
     persistent: bool,
 }
 
-#[post("/api/v1/user/login", data = "<login>")]
+#[post("/user/login", data = "<login>")]
 pub fn user_login(
     mut cookies: Cookies<'_>,
     conn: DbConn,
@@ -72,7 +72,7 @@ pub fn user_login(
     })
 }
 
-#[post("/api/v1/user", data = "<user>")]
+#[post("/user", data = "<user>")]
 pub fn user_create(conn: DbConn, user: Json<User>, rocket_env: State<Environment>) -> JSONResp<String> {
     let hashed_pass = hash(user.password.clone(), DEFAULT_COST)?;
     if !rocket_env.inner().0.is_prod() {
@@ -91,7 +91,7 @@ pub fn user_create(conn: DbConn, user: Json<User>, rocket_env: State<Environment
     }
 }
 
-#[put("/api/v1/user", data = "<user>")]
+#[put("/user", data = "<user>")]
 pub fn user_change_pass(conn: DbConn, user: Json<User>, rocket_env: State<Environment>, token: ValidToken) -> JSONResp<String> {
 
     if token.username != user.username {
@@ -114,7 +114,7 @@ pub fn user_change_pass(conn: DbConn, user: Json<User>, rocket_env: State<Enviro
     ok_resp(format!("Created user {}", username))
 }
 
-#[post("/api/v1/user/logout")]
+#[post("/user/logout")]
 pub fn user_logout(
     conn: DbConn,
     token: ValidToken,
@@ -130,7 +130,7 @@ pub fn user_logout(
     }
 }
 
-#[get("/api/v1/index")]
+#[get("/index")]
 pub fn user_index(conn: DbConn, token: ValidToken) -> JSONResp<User> {
     ok_resp(users::get(token.username, &conn)?)
 }

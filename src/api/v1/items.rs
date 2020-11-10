@@ -6,7 +6,7 @@ use log::debug;
 
 extern crate reqwest;
 
-#[get("/api/v1/items")]
+#[get("/items")]
 pub fn index() -> String {
     let resp = reqwest::blocking::get(
         "https://www.benningtonbanner.com/category/local-news/browse.xml",

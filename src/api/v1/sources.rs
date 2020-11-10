@@ -26,14 +26,14 @@ pub struct SourceDeletePayload {
     pub id: Uuid,
 }
 
-#[get("/api/v1/sources")]
+#[get("/sources")]
 pub fn sources_list(conn: DbConn, token: ValidToken) -> JSONResp<Vec<Source>> {
     let user = users::get(token.username, &conn)?;
     let sources = sources::all_from_user(user.username, &conn)?;
     ok_resp(sources)
 }
 
-#[put("/api/v1/sources", data = "<source>")]
+#[put("/sources", data = "<source>")]
 pub fn source_update(
     conn: DbConn,
     token: ValidToken,
@@ -51,7 +51,7 @@ pub fn source_update(
     ok_resp(updated_source)
 }
 
-#[post("/api/v1/sources", data = "<source>")]
+#[post("/sources", data = "<source>")]
 pub fn source_create(
     conn: DbConn,
     token: ValidToken,
@@ -75,7 +75,7 @@ pub fn source_create(
     ok_resp(new_source)
 }
 
-#[delete("/api/v1/sources", data = "<source>")]
+#[delete("/sources", data = "<source>")]
 pub fn source_delete(
     conn: DbConn,
     token: ValidToken,
