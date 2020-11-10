@@ -20,9 +20,9 @@ fn main() {
             "/",
             routes![
                 items::index,
-                users::create,
-                users::login,
-                users::logout,
+                users::user_create,
+                users::user_login,
+                users::user_logout,
                 users::user_index,
             ],
         )

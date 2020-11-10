@@ -30,8 +30,8 @@ pub struct UserLogin {
     persistent: bool,
 }
 
-#[post("/api/v1/users/login", data = "<login>")]
-pub fn login(
+#[post("/api/v1/user/login", data = "<login>")]
+pub fn user_login(
     mut cookies: Cookies<'_>,
     conn: DbConn,
     rocket_env: State<Environment>,
@@ -72,10 +72,12 @@ pub fn login(
     })
 }
 
-#[post("/api/v1/users/create", data = "<user>")]
-pub fn create(conn: DbConn, user: Json<User>) -> JSONResp<String> {
+#[post("/api/v1/user", data = "<user>")]
+pub fn user_create(conn: DbConn, user: Json<User>, rocket_env: State<Environment>) -> JSONResp<String> {
     let hashed_pass = hash(user.password.clone(), DEFAULT_COST)?;
-    log::debug!("Hashed {} as {}", user.password.clone(), hashed_pass);
+    if !rocket_env.inner().0.is_prod() {
+        log::debug!("Hashed {} as {}", user.password.clone(), hashed_pass);
+    }
 
     let user = User {
         username: user.username.clone(),
@@ -89,8 +91,31 @@ pub fn create(conn: DbConn, user: Json<User>) -> JSONResp<String> {
     }
 }
 
-#[post("/api/v1/users/logout")]
-pub fn logout(
+#[put("/api/v1/user", data = "<user>")]
+pub fn user_change_pass(conn: DbConn, user: Json<User>, rocket_env: State<Environment>, token: ValidToken) -> JSONResp<String> {
+
+    if token.username != user.username {
+        return user_err_resp(format!("Signed in as user {}, cannot change password for user {}", token.username, user.username))
+    }
+
+    let hashed_pass = hash(user.password.clone(), DEFAULT_COST)?;
+    if !rocket_env.inner().0.is_prod() {
+        log::debug!("Hashed {} as {}", user.password.clone(), hashed_pass);
+    }
+
+    let user = User {
+        username: user.username.clone(),
+        password: hashed_pass,
+    };
+
+    let username = user.username.clone();
+    users::update(user, &conn)?;
+
+    ok_resp(format!("Created user {}", username))
+}
+
+#[post("/api/v1/user/logout")]
+pub fn user_logout(
     conn: DbConn,
     token: ValidToken,
     mut cookies: Cookies<'_>,
