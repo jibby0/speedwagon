@@ -14,11 +14,10 @@ use uuid::Uuid;
 /// Methods specific to a kind of source (ex: RSS)
 pub trait SourceData {
     // Pull available articles from a source.
-    fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>>;
+    fn fetch(&self) -> Result<Vec<Article>>;
     // Remove articles from a list that already exist in the db.
     fn unique(
         &self,
-        source_id: Uuid,
         articles: &mut Vec<Article>,
         conn: &PgConnection,
     ) -> Result<()>;
@@ -45,50 +44,18 @@ impl Error for RSSFetchError {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RSSAtom {
     url: String,
+    source_id: Uuid,
 }
 
 impl SourceData for RSSAtom {
-    fn fetch(&self, source_id: Uuid) -> Result<Vec<Article>> {
+    fn fetch(&self) -> Result<Vec<Article>> {
         let resp = reqwest::blocking::get(&self.url).and_then(|r| r.text())?;
 
-        let rss_err =
-            match rss::Channel::read_from(BufReader::new(resp.as_bytes())) {
-                Err(e) => e,
-                Ok(channel) => {
-                    return Ok(channel
-                        .into_items()
-                        .into_iter()
-                        .map(|item| {
-                            RSSAtom::rss_item_to_article(&item, source_id)
-                        })
-                        .collect())
-                }
-            };
-
-        let atom_err = match atom_syndication::Feed::read_from(BufReader::new(
-            resp.as_bytes(),
-        )) {
-            Err(e) => e,
-            Ok(feed) => {
-                return Ok(feed
-                    .entries
-                    .into_iter()
-                    .map(|entry| {
-                        RSSAtom::atom_entry_to_article(&entry, source_id)
-                    })
-                    .collect())
-            }
-        };
-
-        Err(Box::new(RSSFetchError {
-            rss_error: rss_err,
-            atom_error: atom_err,
-        }))
+        self.parse(resp.as_bytes())
     }
 
     fn unique(
         &self,
-        source_id: Uuid,
         articles: &mut Vec<Article>,
         conn: &PgConnection,
     ) -> Result<()> {
@@ -101,7 +68,7 @@ impl SourceData for RSSAtom {
         for article in articles.iter() {
             let mut query = articles::table
                 .select(articles::id)
-                .filter(articles::source.eq(&source_id))
+                .filter(articles::source.eq(&self.source_id))
                 .into_boxed();
             let mut filters = 0;
             if let Some(id) = &article.id_from_source {
@@ -152,6 +119,43 @@ impl SourceData for RSSAtom {
 }
 
 impl RSSAtom {
+    fn parse(&self, resp: &[u8]) -> Result<Vec<Article>> {
+        let rss_err = match rss::Channel::read_from(BufReader::new(resp)) {
+            Err(e) => e,
+            Ok(channel) => {
+                return Ok(channel
+                    .into_items()
+                    .into_iter()
+                    .map(|item| {
+                        RSSAtom::rss_item_to_article(&item, self.source_id)
+                    })
+                    .collect())
+            }
+        };
+
+        let atom_err =
+            match atom_syndication::Feed::read_from(BufReader::new(resp)) {
+                Err(e) => e,
+                Ok(feed) => {
+                    return Ok(feed
+                        .entries
+                        .into_iter()
+                        .map(|entry| {
+                            RSSAtom::atom_entry_to_article(
+                                &entry,
+                                self.source_id,
+                            )
+                        })
+                        .collect())
+                }
+            };
+
+        Err(Box::new(RSSFetchError {
+            rss_error: rss_err,
+            atom_error: atom_err,
+        }))
+    }
+
     fn rss_item_to_article(item: &rss::Item, source_id: Uuid) -> Article {
         let ts = item
             .pub_date()
@@ -262,23 +266,48 @@ fn opt_to_vector<T>(o: Option<T>) -> Vec<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        error::Error,
+        fmt,
+        fs::File,
+        io::{BufReader, Read},
+    };
     #[test]
-    fn fetch_example_rss() {
-        let source_id = Uuid::new_v4();
-        let good_rss = RSSAtom{url: "http://rssfeeds.democratandchronicle.com/Democratandchronicle/news".to_string()};
-        let articles = good_rss.fetch(source_id).unwrap();
+    fn parse_example_rss() {
+        let rss = RSSAtom {
+            url: "".to_string(),
+            source_id: Uuid::new_v4(),
+        };
+
+        let mut file = File::open("test_data/test_rss.xml").unwrap();
+        let mut file_contents = Vec::new();
+        file.read_to_end(&mut file_contents).unwrap();
+
+        let articles = rss.parse(file_contents.as_slice()).unwrap();
+
+        // let articles = good_rss.fetch().unwrap();
         for a in &articles {
-            assert!(a.source == source_id);
+            assert!(a.source == rss.source_id);
             println!("{:#?}", a);
         }
     }
 
     #[test]
     fn fetch_bad_rss() {
-        let source_id = Uuid::new_v4();
-        let bad_rss = RSSAtom {
-            url: "http://example.com".to_string(),
+        let rss = RSSAtom {
+            url: "".to_string(),
+            source_id: Uuid::new_v4(),
         };
-        bad_rss.fetch(source_id).unwrap_err();
+        rss.fetch().unwrap_err();
+    }
+
+    #[test]
+    fn parse_bad_rss() {
+        let rss = RSSAtom {
+            url: "".to_string(),
+            source_id: Uuid::new_v4(),
+        };
+        rss.parse("<html><body><p>Hello world!</p></body></html>".as_bytes())
+            .unwrap_err();
     }
 }

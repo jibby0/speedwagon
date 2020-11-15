@@ -6,7 +6,7 @@ use crate::{
     Result,
 };
 
-use uuid::Uuid;
+
 
 const MAX_FETCH_ERRORS: usize = 10;
 
@@ -50,11 +50,11 @@ fn fetch_new_from_source(
     source: &sources::Source,
 ) -> Result<Vec<Article>> {
     let source_data = serde_json::from_value(source.source_data.to_owned())?;
-    let mut fetched_articles = fetch_from_source(&source_data, source.id)?;
+    let mut fetched_articles = fetch_from_source(&source_data)?;
 
     match source_data {
         sources::SourceData::RSSAtom(r) => {
-            r.unique(source.id, &mut fetched_articles, conn)?
+            r.unique(&mut fetched_articles, conn)?
         }
     };
     Ok(fetched_articles)
@@ -62,9 +62,8 @@ fn fetch_new_from_source(
 
 fn fetch_from_source(
     source_data: &sources::SourceData,
-    source_id: Uuid,
 ) -> Result<Vec<Article>> {
     match source_data {
-        sources::SourceData::RSSAtom(r) => r.fetch(source_id),
+        sources::SourceData::RSSAtom(r) => r.fetch(),
     }
 }

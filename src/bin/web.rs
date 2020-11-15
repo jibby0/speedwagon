@@ -10,9 +10,14 @@ use speedwagon::{
 use rocket::fairing::AdHoc;
 
 fn main() {
-    dotenv::dotenv().ok();
     logger::setup_logging(log::LevelFilter::Debug)
         .expect("failed to initialize logging");
+    setup_rocket().launch();
+}
+
+// TODO move this to a shared spot
+pub fn setup_rocket() -> rocket::Rocket {
+    dotenv::dotenv().expect("Failed to read .env file");
     rocket::ignite()
         .manage(db::init_pool())
         .mount(
@@ -33,5 +38,20 @@ fn main() {
             let env = rocket.config().environment;
             Ok(rocket.manage(state::Environment(env)))
         }))
-        .launch();
+}
+
+// TODO move this to api/v1/users
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rocket::{http::Status, local::Client};
+
+    #[test]
+    fn api_user_create() {
+        let client =
+            Client::new(setup_rocket()).expect("valid rocket instance");
+        let mut response = client.get("/").dispatch();
+        assert_eq!(response.status(), Status::Ok);
+        assert_eq!(response.body_string(), Some("Hello, world!".into()));
+    }
 }
