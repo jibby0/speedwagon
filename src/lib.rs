@@ -19,6 +19,7 @@ pub mod schema;
 pub mod sources;
 pub mod state;
 pub mod timestamp;
+pub mod setup_rocket;
 
 use std::{error::Error, result::Result as StdResult};
 type Result<T> = StdResult<T, Box<dyn Error>>;

@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Resp<T> {
-    status: &'static str,
+    status: String,
     contents: T,
 }
 
@@ -29,7 +29,7 @@ impl ApiError {
         ApiError(Custom(
             status,
             Json(Resp {
-                status: "error",
+                status: "error".into(),
                 contents,
             }),
         ))
@@ -67,7 +67,7 @@ pub type JSONResp<T> = Result<Json<Resp<T>>, ApiError>;
 
 pub fn ok_resp<T: Serialize>(x: T) -> JSONResp<T> {
     Ok(Json(Resp {
-        status: "ok",
+        status: "ok".into(),
         contents: x,
     }))
 }

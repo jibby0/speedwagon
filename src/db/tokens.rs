@@ -30,6 +30,12 @@ pub fn update(token: Token, connection: &PgConnection) -> QueryResult<Token> {
         .get_result(connection)
 }
 
+pub fn all_for_user(username: String, connection: &PgConnection) -> QueryResult<Vec<Token>> {
+    tokens::table
+        .filter(tokens::username.eq(username))
+        .load::<Token>(&*connection)
+}
+
 pub fn delete(id: Uuid, connection: &PgConnection) -> QueryResult<usize> {
     diesel::delete(tokens::table.find(id)).execute(connection)
 }
