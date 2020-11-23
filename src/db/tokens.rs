@@ -30,7 +30,10 @@ pub fn update(token: Token, connection: &PgConnection) -> QueryResult<Token> {
         .get_result(connection)
 }
 
-pub fn all_for_user(username: String, connection: &PgConnection) -> QueryResult<Vec<Token>> {
+pub fn all_for_user(
+    username: String,
+    connection: &PgConnection,
+) -> QueryResult<Vec<Token>> {
     tokens::table
         .filter(tokens::username.eq(username))
         .load::<Token>(&*connection)

@@ -30,4 +30,3 @@ pub fn setup_rocket() -> rocket::Rocket {
             Ok(rocket.manage(state::Environment(env)))
         }))
 }
-

@@ -6,8 +6,6 @@ use crate::{
     Result,
 };
 
-
-
 const MAX_FETCH_ERRORS: usize = 10;
 
 pub fn fetch_new_from_all_sources(pool: &mut db::Pool) -> Result<()> {

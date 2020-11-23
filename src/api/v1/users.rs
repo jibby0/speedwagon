@@ -1,9 +1,8 @@
 use crate::{
     api::v1::{
-        internal_err_resp, ok_resp, user_err_resp, Resp, JSONResp, ValidToken,
+        internal_err_resp, ok_resp, user_err_resp, JSONResp, ValidToken,
     },
     db::{tokens, tokens::Token, users, users::User, DbConn},
-    setup_rocket::setup_rocket
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
 use rocket::{
@@ -163,33 +162,72 @@ pub fn user_index(conn: DbConn, token: ValidToken) -> JSONResp<User> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{api::v1::Resp, setup_rocket::setup_rocket};
     use rocket::{
-        http::{ContentType, Status},
-        local::Client
+        http::{ContentType, Header, Status},
+        local::Client,
     };
 
     #[test]
     fn api_user_lifecycle() {
+        // Create
         let client =
             Client::new(setup_rocket()).expect("valid rocket instance");
 
-        let payload = serde_json::to_value(
-            users::User{username: "foo".into(), password: "bar".into()}
-        ).unwrap().to_string();
+        let payload = serde_json::to_value(users::User {
+            username: "foo".into(),
+            password: "bar".into(),
+        })
+        .unwrap()
+        .to_string();
 
-        let mut response = client.post("/api/v1/user")
-          .body(payload)
-          .header(ContentType::JSON)
-          .dispatch();
-        let resp_obj: Resp<String> = serde_json::from_str(&response.body_string().unwrap()).unwrap();
+        let mut response = client
+            .post("/api/v1/user")
+            .body(payload)
+            .header(ContentType::JSON)
+            .dispatch();
+        let resp_obj: Resp<String> =
+            serde_json::from_str(&response.body_string().unwrap()).unwrap();
 
         assert_eq!(resp_obj.contents, "Created user foo".to_string());
         assert_eq!(resp_obj.status, "ok");
         assert_eq!(response.status(), Status::Ok);
 
+        // Login
+        let payload = serde_json::to_value(UserLogin {
+            username: "foo".into(),
+            password: "bar".into(),
+            persistent: false,
+        })
+        .unwrap()
+        .to_string();
 
-        // TODO login
+        let mut response = client
+            .post("/api/v1/user/login")
+            .body(payload)
+            .header(ContentType::JSON)
+            .dispatch();
+        let resp_obj: Resp<ApiTokenResp> =
+            serde_json::from_str(&response.body_string().unwrap()).unwrap();
 
-        // TODO delete
+        assert_eq!(resp_obj.status, "ok");
+        assert_eq!(response.status(), Status::Ok);
+
+        let api_token = resp_obj.contents.api_token;
+
+        // Delete
+        let mut response = client
+            .delete("/api/v1/user")
+            .header(Header::new(
+                "Authorization",
+                format!("Bearer {}", api_token),
+            ))
+            .dispatch();
+
+        let resp_obj: Resp<String> =
+            serde_json::from_str(&response.body_string().unwrap()).unwrap();
+        assert_eq!(resp_obj.status, "ok");
+        assert_eq!(response.status(), Status::Ok);
+        assert_eq!(resp_obj.contents, "Successfully deleted user".to_string());
     }
 }

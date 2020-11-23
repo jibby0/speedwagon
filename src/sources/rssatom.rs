@@ -266,12 +266,7 @@ fn opt_to_vector<T>(o: Option<T>) -> Vec<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{
-        error::Error,
-        fmt,
-        fs::File,
-        io::{BufReader, Read},
-    };
+    use std::{fs::File, io::Read};
     #[test]
     fn parse_example_rss() {
         let rss = RSSAtom {
