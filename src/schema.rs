@@ -28,6 +28,7 @@ table! {
         fetch_errors -> Array<Text>,
         creator -> Text,
         fetching -> Bool,
+        last_fetch_started -> Timestamp,
     }
 }
 

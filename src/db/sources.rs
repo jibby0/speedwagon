@@ -4,6 +4,7 @@ use crate::{
     sources::rssatom,
     timestamp::Timestamp,
 };
+use chrono::Duration;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +39,7 @@ pub struct Source {
     pub fetch_errors: Vec<String>,
     pub creator: String,
     pub fetching: bool,
+    pub last_fetch_started: Timestamp,
     /* TODO optional config line for sharing
      * TODO optional config arg to make copies on Source changes, on
      * untrusted servers */
@@ -61,6 +63,7 @@ impl Source {
             last_post: Timestamp::now(),
             fetch_errors: Vec::new(),
             fetching: false,
+            last_fetch_started: Timestamp::now(),
         }
     }
 }
@@ -91,6 +94,39 @@ pub fn all_from_tag(
 
 pub fn get(id: Uuid, connection: &PgConnection) -> QueryResult<Source> {
     sources::table.find(id).get_result::<Source>(connection)
+}
+
+/// Get all sources that need to be fetched.
+///
+/// `get`, but checks & sets `fetching=true` & last_fetch_started.
+/// The client is responsible for setting  `fetching=false` and
+/// last_successful_fetch upon success.
+pub fn get_for_fetch(connection: &PgConnection) -> QueryResult<Vec<Source>> {
+    let this_fetch = Timestamp::now();
+    connection.transaction(|| {
+        let mut sources = sources::table
+            .for_update()
+            .filter(
+                sources::fetching
+                    .eq(false)
+                    .and(
+                        sources::last_successful_fetch
+                            .le(this_fetch - Duration::minutes(15)),
+                    )
+                    .or(sources::fetching.eq(true).and(
+                        sources::last_fetch_started
+                            .le(this_fetch - Duration::minutes(15)),
+                    )),
+            )
+            .load::<Source>(&*connection)?;
+
+        for source in &mut sources {
+            source.fetching = true;
+            source.last_fetch_started = this_fetch;
+            update(source, &connection)?;
+        }
+        Ok(sources)
+    })
 }
 
 pub fn insert(

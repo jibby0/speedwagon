@@ -2,7 +2,6 @@ use crate::{
     db,
     db::{articles, articles::Article, sources},
     sources::rssatom::SourceData,
-    timestamp::Timestamp,
     Result,
 };
 
@@ -10,17 +9,16 @@ const MAX_FETCH_ERRORS: usize = 10;
 
 pub fn fetch_new_from_all_sources(pool: &mut db::Pool) -> Result<()> {
     let conn = db::DbConn(pool.get()?);
-    let mut sources = sources::all(&*conn)?;
+    let mut sources = sources::get_for_fetch(&*conn)?;
 
     for source in &mut sources {
-        let fetch_time = time::now();
         let new_articles = match fetch_new_from_source(&conn, &source) {
             Ok(articles) => articles,
             Err(e) => {
                 // Likely communication problems when connecting to the source
                 source.fetch_errors.push(format!(
                     "{}: {}",
-                    fetch_time.rfc822(),
+                    time::at_utc(source.last_fetch_started.0).rfc822(),
                     e
                 ));
                 // Only keep the latest errors
@@ -29,15 +27,19 @@ pub fn fetch_new_from_all_sources(pool: &mut db::Pool) -> Result<()> {
                         0..(source.fetch_errors.len() - MAX_FETCH_ERRORS),
                     );
                 }
+                // TODO only update fetch_errors
                 sources::update(source, &conn)?;
                 continue;
             }
         };
 
-        source.last_successful_fetch = Timestamp(fetch_time.to_timespec());
         for article in new_articles {
             articles::insert(article, &conn)?;
         }
+        source.last_successful_fetch = source.last_fetch_started;
+        source.fetching = false;
+        // TODO only update last_successful_fetch, & fetching
+        sources::update(source, &conn)?;
     }
 
     Ok(())

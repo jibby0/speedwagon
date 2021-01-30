@@ -10,9 +10,13 @@ use diesel::{
 use serde::{
     de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::{fmt, io::Write};
+use std::{
+    fmt,
+    io::Write,
+    ops::{Add, Sub},
+};
 
-#[derive(Debug, AsExpression, FromSqlRow, PartialEq, Clone)]
+#[derive(Debug, AsExpression, FromSqlRow, PartialEq, Clone, Copy)]
 #[sql_type = "sql_types::Timestamp"]
 pub struct Timestamp(pub time::Timespec);
 
@@ -29,6 +33,22 @@ impl Serialize for Timestamp {
     {
         serializer
             .serialize_str(format!("{}", time::at(self.0).rfc822()).as_str())
+    }
+}
+
+impl Add<time::Duration> for Timestamp {
+    type Output = Timestamp;
+
+    fn add(self, other: time::Duration) -> Timestamp {
+        Timestamp(self.0.add(other))
+    }
+}
+
+impl Sub<time::Duration> for Timestamp {
+    type Output = Timestamp;
+
+    fn sub(self, other: time::Duration) -> Timestamp {
+        Timestamp(self.0.sub(other))
     }
 }
 

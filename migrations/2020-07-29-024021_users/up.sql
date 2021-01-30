@@ -19,7 +19,8 @@ CREATE TABLE sources (
   last_successful_fetch TIMESTAMP NOT NULL,
   fetch_errors TEXT[] NOT NULL,
   creator TEXT REFERENCES users(username) NOT NULL,
-  fetching BOOLEAN NOT NULL
+  fetching BOOLEAN NOT NULL,
+  last_fetch_started TIMESTAMP NOT NULL
 );
 
 CREATE TABLE articles (
